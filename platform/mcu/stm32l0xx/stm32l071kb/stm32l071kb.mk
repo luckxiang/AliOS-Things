@@ -7,7 +7,7 @@ SPI_WIFI_ENABLED := true
 $(NAME)_TYPE := kernel
 
 $(NAME)_COMPONENTS += platform/arch/arm/armv6m
-# $(NAME)_COMPONENTS += libc rhino hal netmgr framework.common mbedtls cjson cli digest_algorithm
+# $(NAME)_COMPONENTS += libc rhino hal netmgr middleware.common mbedtls cjson cli digest_algorithm
 $(NAME)_COMPONENTS += rhino
 
 GLOBAL_DEFINES += STM32_USE_SPI_WIFI
@@ -47,7 +47,8 @@ $(NAME)_INCLUDES := \
 ../Drivers/STM32L0xx_HAL_Driver/Inc \
 ../Drivers/STM32L0xx_HAL_Driver/Inc/Legacy \
 ../Drivers/CMSIS/Device/ST/STM32L0xx/Include \
-../Drivers/CMSIS/Include
+../Drivers/CMSIS/Include \
+../hal
 
 $(NAME)_SOURCES := \
 ../aos/soc_impl.c \
@@ -79,7 +80,8 @@ $(NAME)_SOURCES := \
 ../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_ll_usart.c \
 ../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_ll_gpio.c \
 ../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_ll_rtc.c \
-../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_ll_rcc.c
+../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_ll_rcc.c \
+../hal/hal_timer_stm32l0.c \
 
 $(NAME)_DEFINES := \
 USE_HAL_DRIVER \

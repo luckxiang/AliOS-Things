@@ -305,6 +305,13 @@ void SYS_LED_Init( void )
     SYS_LED_OFF( );
 }
 
+
+void HW_Reset( void )
+{
+    NVIC_SystemReset();
+
+}
+
 void HW_Init( void )
 {
     if ( McuInitialized == RESET )
@@ -315,7 +322,9 @@ void HW_Init( void )
         NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x3000);
 #endif
 
+#if defined(EML3047_LORAWAN)
         Radio.IoInit( );
+#endif
         HW_SPI_Init( );
         HW_RTC_Init( );
 
@@ -409,33 +418,7 @@ void HW_GetUniqueId( uint8_t *id )
 
 uint8_t HW_GetBatteryLevel( void )
 {
-    uint8_t batteryLevel = 0;
-    uint16_t measuredLevel = 0;
-    uint32_t batteryLevelmV;
-
-    measuredLevel = HW_AdcReadChannel( LL_ADC_CHANNEL_VREFINT );
-
-    if ( measuredLevel == 0 )
-    {
-        batteryLevelmV = 0;
-    }
-    else
-    {
-        batteryLevelmV = (((uint32_t) VDDA_VREFINT_CAL * (*VREFINT_CAL)) / measuredLevel);
-    }
-    if ( batteryLevelmV > VDD_BAT )
-    {
-        batteryLevel = LORAWAN_MAX_BAT;
-    }
-    else if ( batteryLevelmV < VDD_MIN )
-    {
-        batteryLevel = 0;
-    }
-    else
-    {
-        batteryLevel = (((uint32_t) (batteryLevelmV - VDD_MIN) * LORAWAN_MAX_BAT) / (VDD_BAT - VDD_MIN));
-    }
-    return batteryLevel;
+    return 0xff;
 }
 
 void HW_EnterStopMode( void )
@@ -450,7 +433,7 @@ void HW_EnterStopMode( void )
     LL_PWR_ClearFlag_WU( );
 
     /* Disable the UART Data Register not empty Interrupt */
-    LL_LPUART_DisableIT_RXNE( UARTX );
+    //LL_LPUART_DisableIT_RXNE( UARTX );
 
     RHINO_CPU_INTRPT_ENABLE();
 
@@ -1197,5 +1180,36 @@ static uint16_t HW_AdcReadChannel( uint32_t Channel )
     }
     return adcData;
 }
+
+uint32_t HW_Get_MFT_ID(void)
+{
+    return 0x1234;
+}
+
+uint32_t HW_Get_MFT_Model(void)
+{
+    return 0x4321;
+}
+
+uint32_t HW_Get_MFT_Rev(void)
+{
+    return 0x0001;
+}
+
+uint32_t HW_Get_MFT_SN(void)
+{
+    return 0xffff;
+}
+
+bool HW_Set_MFT_Baud(uint32_t baud)
+{
+    return true;
+}
+
+uint32_t HW_Get_MFT_Baud(void)
+{
+    return 115200;
+}
+
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

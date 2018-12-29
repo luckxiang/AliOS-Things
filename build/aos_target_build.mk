@@ -12,11 +12,13 @@ else ifeq ($(COMPILER),gcc)
 include $(MAKEFILES_PATH)/aos_toolchain_gcc.mk
 else ifeq ($(COMPILER),armcc)
 include $(MAKEFILES_PATH)/aos_toolchain_armcc.mk
+else ifeq ($(COMPILER),rvct)
+include $(MAKEFILES_PATH)/aos_toolchain_rvct.mk
 else ifeq ($(COMPILER),iar)
 include $(MAKEFILES_PATH)/aos_toolchain_iar.mk
 endif
 
-.PHONY: display_map_summary build_done
+.PHONY: display_map_summary build_done  
 
 ##################################
 # Filenames
@@ -34,6 +36,12 @@ MAP_OUTPUT_FILE           :=$(LINK_OUTPUT_FILE:$(LINK_OUTPUT_SUFFIX)=.map)
 # out/helloworld@xx/binary/helloworld@xx.map
 MAP_CSV_OUTPUT_FILE       :=$(LINK_OUTPUT_FILE:$(LINK_OUTPUT_SUFFIX)=_map.csv)
 # out/helloworld@xx/binary/helloworld@xx_map.csv
+
+ifeq ($(PING_PONG_OTA),1)
+LINK_OUTPUT_FILE_XIP2     :=$(LINK_OUTPUT_FILE:$(LINK_OUTPUT_SUFFIX)=.xip2$(LINK_OUTPUT_SUFFIX))
+STRIPPED_LINK_OUTPUT_FILE_XIP2 :=$(LINK_OUTPUT_FILE_XIP2:$(LINK_OUTPUT_SUFFIX)=.stripped$(LINK_OUTPUT_SUFFIX))
+BIN_OUTPUT_FILE_XIP2      :=$(BIN_OUTPUT_FILE:$(BIN_OUTPUT_SUFFIX)=.xip2$(BIN_OUTPUT_SUFFIX))
+endif
 
 OPENOCD_LOG_FILE          ?= $(OUTPUT_DIR)/openocd_log.txt
 
@@ -69,6 +77,13 @@ include $(MAKEFILES_PATH)/aos_images_download.mk
 # rather than from the cwd
 # $(1) is component
 GET_BARE_LOCATION =$(patsubst $(call ESCAPE_BACKSLASHES,$(SOURCE_ROOT))%,%,$(strip $(subst :,/,$($(1)_LOCATION))))
+
+define SELF_BUILD_RULE
+$(LIBS_DIR)/$(notdir $($(1)_SELF_BUIlD_COMP_targets)): $(OUTPUT_DIR)/config.mk
+	echo CONFIG_ENV_CFLAGS += $(RESOURCE_CFLAGS) > $($(1)_LOCATION)iotx-sdk-c_clone/aos_board_conf.mk
+	echo CROSS_PREFIX := $(TOOLCHAIN_PATH)$(TOOLCHAIN_PREFIX) >> $($(1)_LOCATION)iotx-sdk-c_clone/aos_board_conf.mk
+	sh $($(1)_LOCATION)$($(1)_SELF_BUIlD_COMP_scripts) $(LIBS_DIR)  $(SOURCE_ROOT)app/example/$(APP_FULL)
+endef
 
 
 ###############################################################################
@@ -135,7 +150,7 @@ endif
 define BUILD_COMPONENT_RULES
 
 $(eval LINK_LIBS +=$(if $($(1)_SOURCES),$(LIBS_DIR)/$(1).a))
-
+$(eval LINK_LIBS +=$(if $($(1)_SELF_BUIlD_COMP_targets),$(LIBS_DIR)/$(notdir $($(1)_SELF_BUIlD_COMP_targets) )))
 
 ifneq ($($(1)_PRE_BUILD_TARGETS),)
 include $($(1)_MAKEFILE)
@@ -154,6 +169,7 @@ $(LIBS_DIR)/$(1).c_opts: $($(1)_PRE_BUILD_TARGETS) $(CONFIG_FILE) | $(LIBS_DIR)
 	$(eval C_OPTS_FILE := $($(1)_C_OPTS) )
 	$(if $(IDE_IAR_FLAG),$(eval C_OPTS_FILE:=$(C_OPTS_IAR)),)
 	$(if $(IDE_KEIL_FLAG),$(eval C_OPTS_FILE:=$(C_OPTS_KEIL)),)
+	$$(call WRITE_FILE_CREATE, $$@, $(C_OPTS_FILE))
 	$$(file >$$@, $(C_OPTS_FILE) )
 
 $(LIBS_DIR)/$(1).cpp_opts: $($(1)_PRE_BUILD_TARGETS) $(CONFIG_FILE) | $(LIBS_DIR)
@@ -162,8 +178,10 @@ $(LIBS_DIR)/$(1).cpp_opts: $($(1)_PRE_BUILD_TARGETS) $(CONFIG_FILE) | $(LIBS_DIR
 
 $(LIBS_DIR)/$(1).as_opts: $(CONFIG_FILE) | $(LIBS_DIR)
 	$(eval $(1)_S_OPTS:=$(CPU_ASMFLAGS) $(COMPILER_SPECIFIC_COMP_ONLY_FLAG) $(COMPILER_UNI_SFLAGS) $($(1)_ASMFLAGS) $($(1)_INCLUDES) $(AOS_SDK_INCLUDES))
-	$(eval S_OPTS_IAR := $(filter-out --cpu Cortex-M4, $($(1)_S_OPTS) ) )
-	$(eval S_OPTS_FILE := $($(1)_S_OPTS) )
+	$(eval S_OPTS_KEIL := $(subst -I.,-I../../../../., $($(1)_S_OPTS) ) )
+	$(eval S_OPTS_IAR := $(filter-out --cpu Cortex-%, $($(1)_S_OPTS) ) )
+	$(eval S_OPTS_FILE := $($(1)_S_OPTS) )    
+	$(if $(IDE_KEIL_FLAG),$(eval S_OPTS_FILE:=$(S_OPTS_KEIL)),)
 	$(if $(IDE_IAR_FLAG),$(eval S_OPTS_FILE:=$(S_OPTS_IAR)),)
 	$$(file >$$@, $(S_OPTS_FILE) )
 
@@ -179,7 +197,11 @@ $(foreach src, $(if $(findstring 1,$(CHECK_HEADERS)), $(filter %.h, $($(1)_CHECK
 $(LIBS_DIR)/$(1).a: $$($(1)_LIB_OBJS) $($(1)_CHECK_HEADER_LIST) $(OUTPUT_DIR)/libraries/$(1).ar_opts
 	$(ECHO) Making $$@
 	$(QUIET)$(AR) $(AOS_SDK_ARFLAGS) $(COMPILER_SPECIFIC_ARFLAGS_CREATE) $$@ $(OPTIONS_IN_FILE_OPTION_PREFIX)$(OPTIONS_IN_FILE_OPTION)$(OUTPUT_DIR)/libraries/$(1).ar_opts$(OPTIONS_IN_FILE_OPTION_SUFFIX)
+ifeq ($(COMPILER),)
+	$(QUIET)$(STRIP) -g -o $(OUTPUT_DIR)/libraries/$(1).stripped.a $(OUTPUT_DIR)/libraries/$(1).a
+endif
 # Create targets to built the component's source files into object files
+$(if $($(1)_SELF_BUIlD_COMP_scripts), $(eval $(call SELF_BUILD_RULE,$(1))) )
 $(foreach src, $(filter %.c, $($(1)_SOURCES)),$(eval $(call BUILD_C_RULE,$(1),$(src))))
 $(foreach src, $(filter %.cpp, $($(1)_SOURCES)) $(filter %.cc, $($(1)_SOURCES)),$(eval $(call BUILD_CPP_RULE,$(1),$(src))))
 $(foreach src, $(filter %.s %.S, $($(1)_SOURCES)),$(eval $(call BUILD_S_RULE,$(1),$(src))))
@@ -298,11 +320,25 @@ define 	LINK_OUTPUT_FILE_OPTIONS_MACRO
 LINK_OUTPUT_FILE_OPTIONS = $(OPTIONS_IN_FILE_OPTION_PREFIX)$(OPTIONS_IN_FILE_OPTION)$1$(OPTIONS_IN_FILE_OPTION_SUFFIX)
 endef
 
+ifeq ($(PING_PONG_OTA),1)
+$(LINK_OUTPUT_FILE): $(LINK_LIBS) $(AOS_SDK_LINK_SCRIPT) $(LINK_OPTS_FILE) $(LINT_DEPENDENCY) | $(EXTRA_PRE_LINK_TARGETS)
+	$(QUIET)$(ECHO) Making $(notdir $@)
+	$(QUIET)$(LINKER) $(LINK_OPTS) $(COMPILER_SPECIFIC_STDOUT_REDIRECT) -T $(SOURCE_ROOT)/platform/mcu/rtl8710bn/script/rlx8711B-symbol-v02-img2_xip1.ld -o $@
+	$(QUIET)$(ECHO_BLANK_LINE)
+	$(QUIET)$(call COMPILER_SPECIFIC_MAPFILE_TO_CSV,$(MAP_OUTPUT_FILE),$(MAP_CSV_OUTPUT_FILE))
+
+$(LINK_OUTPUT_FILE_XIP2): $(LINK_LIBS) $(AOS_SDK_LINK_SCRIPT) $(LINK_OPTS_FILE) $(LINT_DEPENDENCY) | $(EXTRA_PRE_LINK_TARGETS)
+	$(QUIET)$(ECHO) Making $(notdir $@)
+	$(QUIET)$(LINKER) $(LINK_OPTS) $(COMPILER_SPECIFIC_STDOUT_REDIRECT) -T $(SOURCE_ROOT)/platform/mcu/rtl8710bn/script/rlx8711B-symbol-v02-img2_xip2.ld -o $@
+	$(QUIET)$(ECHO_BLANK_LINE)
+	$(QUIET)$(call COMPILER_SPECIFIC_MAPFILE_TO_CSV,$(MAP_OUTPUT_FILE),$(MAP_CSV_OUTPUT_FILE))
+else
 $(LINK_OUTPUT_FILE): $(LINK_LIBS) $(AOS_SDK_LINK_SCRIPT) $(LINK_OPTS_FILE) $(LINT_DEPENDENCY) | $(EXTRA_PRE_LINK_TARGETS)
 	$(QUIET)$(ECHO) Making $(notdir $@)
 	$(QUIET)$(LINKER) $(LINK_OPTS) $(COMPILER_SPECIFIC_STDOUT_REDIRECT) -o $@
 	$(QUIET)$(ECHO_BLANK_LINE)
 	$(QUIET)$(call COMPILER_SPECIFIC_MAPFILE_TO_CSV,$(MAP_OUTPUT_FILE),$(MAP_CSV_OUTPUT_FILE))
+endif
 
 # Stripped elf file target - Strips the full elf file and outputs to a new .stripped.elf file
 $(STRIPPED_LINK_OUTPUT_FILE): $(LINK_OUTPUT_FILE)
@@ -328,6 +364,15 @@ else ifeq ($(IDE),keil)
 	$(QUIET)cp -rf $(OUTPUT_DIR)/libraries/*_opts $(PROJ_GEN_DIR)/keil_project/opts
 endif	
 	
+ifeq ($(PING_PONG_OTA),1)
+$(STRIPPED_LINK_OUTPUT_FILE_XIP2): $(LINK_OUTPUT_FILE_XIP2)
+	$(QUIET)$(STRIP) $(STRIP_OUTPUT_PREFIX)$@ $(STRIPFLAGS) $<
+
+$(BIN_OUTPUT_FILE_XIP2): $(STRIPPED_LINK_OUTPUT_FILE_XIP2)
+	$(QUIET)$(ECHO) Making $(notdir $@)
+	$(QUIET)$(OBJCOPY) $(OBJCOPY_BIN_FLAGS) $< $(OBJCOPY_OUTPUT_PREFIX)$@ 
+endif
+
 $(HEX_OUTPUT_FILE): $(STRIPPED_LINK_OUTPUT_FILE)
 	$(QUIET)$(ECHO) Making $(notdir $@)
 	$(QUIET)$(OBJCOPY) $(OBJCOPY_HEX_FLAGS) $< $(OBJCOPY_OUTPUT_PREFIX)$@
@@ -342,14 +387,41 @@ $(HEX_OUTPUT_FILE): $(STRIPPED_LINK_OUTPUT_FILE)
 #	$(QUIET)$(ECHO) Making $(PYTHON_FULL_NAME) $(AOS_SDK_CHIP_SPECIFIC_SCRIPT) -i $(AOS_SDK_CONVERTER_OUTPUT_FILE) -o $(AOS_SDK_FINAL_OUTPUT_FILE)
 #	$(QUIET)$(PYTHON_FULL_NAME) $(AOS_SDK_CHIP_SPECIFIC_SCRIPT) -i $(AOS_SDK_CONVERTER_OUTPUT_FILE) -o $(AOS_SDK_FINAL_OUTPUT_FILE)
 
+
+ifeq ($(PING_PONG_OTA),1)
+$(LINK_OUTPUT_FILE_XIP2): $(LINK_OUTPUT_FILE)
+display_map_summary: $(LINK_OUTPUT_FILE_XIP2) $(AOS_SDK_CONVERTER_OUTPUT_FILE) $(AOS_SDK_FINAL_OUTPUT_FILE)
+	$(QUIET) $(call COMPILER_SPECIFIC_MAPFILE_DISPLAY_SUMMARY,$(MAP_OUTPUT_FILE))
+else
 display_map_summary: $(LINK_OUTPUT_FILE) $(AOS_SDK_CONVERTER_OUTPUT_FILE) $(AOS_SDK_FINAL_OUTPUT_FILE)
 	$(QUIET) $(call COMPILER_SPECIFIC_MAPFILE_DISPLAY_SUMMARY,$(MAP_OUTPUT_FILE))
+endif
 
 # Main Target - Ensures the required parts get built
 # $(info Prebuild targets:$(EXTRA_PRE_BUILD_TARGETS))
 # $(info $(BIN_OUTPUT_FILE))
+ifeq ($(PING_PONG_OTA),1)
+$(BIN_OUTPUT_FILE_XIP2): $(BIN_OUTPUT_FILE)
+build_done: $(EXTRA_PRE_BUILD_TARGETS) $(BIN_OUTPUT_FILE_XIP2) $(HEX_OUTPUT_FILE) display_map_summary
+else
 build_done: $(EXTRA_PRE_BUILD_TARGETS) $(BIN_OUTPUT_FILE) $(HEX_OUTPUT_FILE) display_map_summary
+endif
+
+ifeq ($(post_run),1)
+ifeq ($(HOST_OS),Win32)
+FILE_SCRIPT := post_run.bat
+POST_CMD := board\\${PLATFORM}\\$(FILE_SCRIPT) $(APP) $(PLATFORM) $(HOST_MCU_FAMILY)
+endif
+
+build_post_run: build_done
+	$(QUIET)$(ECHO) Running $(POST_CMD)
+	$(POST_CMD)
+endif
 
 $(EXTRA_POST_BUILD_TARGETS): build_done
 
+ifeq ($(post_run),1)
+$(BUILD_STRING): $(if $(EXTRA_POST_BUILD_TARGETS),$(EXTRA_POST_BUILD_TARGETS),build_done) build_post_run
+else
 $(BUILD_STRING): $(if $(EXTRA_POST_BUILD_TARGETS),$(EXTRA_POST_BUILD_TARGETS),build_done)
+endif

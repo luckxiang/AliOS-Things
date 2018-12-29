@@ -126,6 +126,11 @@ void stm32_soc_init(void)
     MX_SPI1_Init();
 
     MX_CRC_Init();
+		
+#ifdef STARTERKIT_AUDIO
+    drv_codec_nau8810_init();
+    audio_init();
+#endif
 }
 
 /** System Clock Configuration
@@ -251,7 +256,7 @@ static void brd_peri_init(void)
 }
 static void uart2_init(void)
 {
-    uart_0.port = PORT_UART2;
+    uart_0.port = 0;
     uart_0.config.baud_rate = 115200;
     uart_0.config.data_width = DATA_WIDTH_8BIT;
     uart_0.config.flow_control = FLOW_CONTROL_DISABLED;
@@ -261,8 +266,6 @@ static void uart2_init(void)
 
     hal_uart_init(&uart_0);
 }
-
-
 
 /** 
   * Enable DMA controller clock

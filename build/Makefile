@@ -1,5 +1,7 @@
 default: Help
 
+unexport NAME # For compatibility with Windows Subsystem Linux
+
 export AOS_SDK_VERSION_MAJOR    :=  3
 export AOS_SDK_VERSION_MINOR    :=  2
 export AOS_SDK_VERSION_REVISION :=  3
@@ -147,7 +149,7 @@ COMPONENT_DEPENDENCY_SCRIPT := $(MAKEFILES_PATH)/scripts/component_dependencies.
 COMPONENT_DEPENDENCY = $(PYTHON) $(COMPONENT_DEPENDENCY_SCRIPT)
 export COMPONENT_DEPENDENCY
 
-.PHONY: $(BUILD_STRING) main_app bootloader clean Help download total run download_bootloader .gdbinit .gdbinit$(BINSTYPE_LOWER)
+.PHONY: $(BUILD_STRING) main_app bootloader clean Help download total run download_bootloader .gdbinit .gdbinit$(BINSTYPE_LOWER) export_linkkit_sdk
 
 Help:
 	$(TOOLCHAIN_HOOK_TARGETS)
@@ -172,11 +174,16 @@ CLEANED_BUILD_STRING += COMPILER=iar
 else ifeq ($(IDE),keil)
 COMPILER := armcc
 CLEANED_BUILD_STRING += COMPILER=armcc
+else ifeq ($(IDE),rvct)
+COMPILER := rvct
+CLEANED_BUILD_STRING += COMPILER=rvct
 endif
 
 # Now we know the target architecture - include all toolchain makefiles and check one of them can handle the architecture
 ifeq ($(COMPILER),armcc)
  include $(MAKEFILES_PATH)/aos_toolchain_armcc.mk
+else ifeq ($(COMPILER),rvct)
+ include $(MAKEFILES_PATH)/aos_toolchain_rvct.mk
 else ifeq ($(COMPILER),iar)
  include $(MAKEFILES_PATH)/aos_toolchain_iar.mk
 else
@@ -198,6 +205,8 @@ $(TEST_COMPONENT_COLLECTION):
 
 ifeq ($(COMPILER),armcc)
  TOOLCHAIN_MK = aos_toolchain_armcc.mk
+else ifeq ($(COMPILER),rvct)
+ TOOLCHAIN_MK = aos_toolchain_rvct.mk
 else ifeq ($(COMPILER),iar)
  TOOLCHAIN_MK = aos_toolchain_iar.mk
 else
@@ -245,7 +254,7 @@ ifeq (,$(SUB_BUILD))
 JOBSNO := -j$(JOBS)
 endif
 
-PASSDOWN_TARGETS := $(strip $(filter-out $(MAKEFILE_TARGETS) $(BUILD_STRING),$(MAKECMDGOALS))) #download total
+PASSDOWN_TARGETS := $(strip $(filter-out $(MAKEFILE_TARGETS) $(BUILD_STRING) export_linkkit_sdk,$(MAKECMDGOALS))) #download total
 $(PASSDOWN_TARGETS):
 	@:
 
@@ -265,7 +274,7 @@ main_app: $(OUTPUT_DIR)/config.mk $(YOS_SDK_PRE_APP_BUILDS) $(MAKEFILES_PATH)/ao
 	$(QUIET)$(MAKE) -r $(JOBSNO) $(SILENT) -f $(MAKEFILES_PATH)/aos_target_build.mk $(CLEANED_BUILD_STRING) $(PASSDOWN_TARGETS)
 	$(QUIET)$(ECHO) Build complete
 else
-main_app: $(OUTPUT_DIR)/config.mk $(YOS_SDK_PRE_APP_BUILDS) $(MAKEFILES_PATH)/aos_target_build_mbins.mk
+main_app: $(OUTPUT_DIR)/config.mk $(MAKEFILES_PATH)/aos_target_build_mbins.mk
 	$(if $(MBINS_ERROR), $(call MBINS_EXIT))
 	$(QUIET)$(ECHO) Build AOS Now
 	$(QUIET)$(ECHO) TOOLCHAIN_PATH=$(TOOLCHAIN_PATH)
@@ -307,3 +316,7 @@ ifneq ($(MBINS),)
 endif
 
 endif
+
+export_linkkit_sdk:
+	$(QUIET)$(call MKDIR, $(BUILD_DIR))
+	$(QUIET)$(PYTHON) $(MAKEFILES_PATH)/scripts/gen_linkkit_sdk.py $(SOURCE_ROOT) $(BUILD_DIR)/export

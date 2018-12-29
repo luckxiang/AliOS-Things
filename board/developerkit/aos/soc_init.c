@@ -7,8 +7,16 @@
 #include "k_config.h"
 #include "soc_init.h"
 
-#define main st_main
-#include "Src/main.c"
+#include "Inc/adc.h"
+#include "Inc/crc.h"
+#include "Inc/dcmi.h"
+#include "Inc/dma.h"
+#include "Inc/irtim.h"
+#include "Inc/sai.h"
+#include "Inc/sdmmc.h"
+#include "Inc/spi.h"
+#include "Inc/tim.h"
+#include "Inc/usb_otg.h"
 
 #if defined (__CC_ARM) && defined(__MICROLIB)
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
@@ -29,10 +37,8 @@ uart_dev_t uart_0;
 
 static void stduart_init(void);
 static void brd_peri_init(void);
-static void MX_SPI1_Init(void);
-static void MX_SAI1_Init(void);
-static void MX_CRC_Init(void);
-static void MX_DMA_Init(void);
+
+extern void SystemClock_Config(void);
 
 void stm32_soc_init(void)
 {
@@ -55,18 +61,30 @@ void stm32_soc_init(void)
     __HAL_RCC_GPIOD_CLK_ENABLE();
     /*default uart init*/
     stduart_init();
-    //brd_peri_init();
-    //MX_DMA_Init();
-    //MX_SAI1_Init();
-    //MX_SPI1_Init();
+    brd_peri_init();
+    //sufficient time to make the initial GPIO level works, especially wifi reset
+    aos_msleep(50);
+    hal_gpio_output_high(&brd_gpio_table[GPIO_WIFI_RST]);
+    MX_DMA_Init();
+    MX_ADC3_Init();
+    MX_DCMI_Init();
+    MX_SAI2_Init();
+    MX_SPI1_Init();
+    MX_USB_OTG_FS_USB_Init();
+    MX_CRC_Init();
+    MX_TIM1_Init();
+    MX_TIM17_Init();
+    MX_TIM16_Init();
+    MX_IRTIM_Init();
 
-    //MX_CRC_Init();
-    
+#ifdef DEVELOPERKIT_IRDA
+    irda_init();
+#endif
 }
 
 static void stduart_init(void)
 {
-    uart_0.port = STDIO_UART;
+    uart_0.port = 0;
     uart_0.config.baud_rate = 115200;
     uart_0.config.data_width = DATA_WIDTH_8BIT;
     uart_0.config.flow_control = FLOW_CONTROL_DISABLED;
@@ -84,24 +102,36 @@ static uint8_t gpio_set = 1;
 static uint8_t gpio_reset = 0;
 
 gpio_dev_t brd_gpio_table[] = {
-    {ALS_INT, IRQ_MODE, &mode_rising},            //PB8
-    {AUDIO_EN, OUTPUT_PUSH_PULL, &gpio_set},      //PA8
-    {LCD_DCX, OUTPUT_PUSH_PULL, &gpio_reset},     //PB1
-    {LCD_PWR, OUTPUT_PUSH_PULL, &gpio_reset},     //PA0
-    {LCD_RST, OUTPUT_PUSH_PULL, &gpio_set},       //PA1
-    {LED_ALS, OUTPUT_PUSH_PULL, &gpio_set},       //PB5
-    {LED_GS, OUTPUT_PUSH_PULL, &gpio_set},        //PB2
-    {LED_HTS, OUTPUT_PUSH_PULL, &gpio_set},       //PA15
-    {LED_PS, OUTPUT_PUSH_PULL, &gpio_set},        //PA12
-    {SW_FUNC_A, IRQ_MODE, &mode_rising},          //PA11
-    {SW_FUNC_B, IRQ_MODE, &mode_rising},          //PC13
-    {SW_WIFI, IRQ_MODE, &mode_rising},            //PB0
-    {WIFI_RST, OUTPUT_PUSH_PULL, &gpio_set},      //PB4
-    {WIFI_WU, OUTPUT_PUSH_PULL, &gpio_set},       //PB9
+    {ALS_INT, IRQ_MODE, &mode_rising},
+    {AUDIO_CTL, OUTPUT_PUSH_PULL, &gpio_reset},
+    {AUDIO_RST, OUTPUT_PUSH_PULL, &gpio_set},
+    {AUDIO_WU, OUTPUT_PUSH_PULL, &gpio_set},
+    {CAM_PD, OUTPUT_PUSH_PULL, &gpio_set},
+    {CAM_RST, OUTPUT_PUSH_PULL, &gpio_set},
+    {LED_1, OUTPUT_PUSH_PULL, &gpio_set},
+    {LED_2, OUTPUT_PUSH_PULL, &gpio_set},
+    {LED_3, OUTPUT_PUSH_PULL, &gpio_set},
+    {KEY_1, IRQ_MODE, &mode_rising},
+    {KEY_2, IRQ_MODE, &mode_rising},
+    {KEY_3, IRQ_MODE, &mode_rising},
+    {LCD_DCX, OUTPUT_PUSH_PULL, &gpio_set},
+    {LCD_PWR, OUTPUT_PUSH_PULL, &gpio_reset},
+    {LCD_RST, OUTPUT_PUSH_PULL, &gpio_set},
+    {PCIE_RST, OUTPUT_PUSH_PULL, &gpio_set},
+    {SECURE_CLK, OUTPUT_PUSH_PULL, &gpio_set},
+    {SECURE_IO, OUTPUT_PUSH_PULL, &gpio_set},
+    {SECURE_RST, OUTPUT_PUSH_PULL, &gpio_set},
+    {SIM_DET, INPUT_HIGH_IMPEDANCE, NULL},
+    {USB_PCIE_SW, OUTPUT_PUSH_PULL, &gpio_set},
+    {WIFI_RST, OUTPUT_PUSH_PULL, &gpio_reset}, /*Low Level will reset wifi*/
+    {WIFI_WU, OUTPUT_PUSH_PULL, &gpio_set},
+    {ZIGBEE_INT, IRQ_MODE, &mode_rising},
+    {ZIGBEE_RST, OUTPUT_PUSH_PULL, &gpio_set},
 };
 
-i2c_dev_t brd_i2c1_dev = {AOS_PORT_I2C1, {0}, NULL};
 i2c_dev_t brd_i2c2_dev = {AOS_PORT_I2C2, {0}, NULL};
+i2c_dev_t brd_i2c3_dev = {AOS_PORT_I2C3, {0}, NULL};
+i2c_dev_t brd_i2c4_dev = {AOS_PORT_I2C4, {0}, NULL};
 
 static void brd_peri_init(void)
 {
@@ -109,24 +139,30 @@ static void brd_peri_init(void)
     int gpcfg_num = sizeof(brd_gpio_table) / sizeof(brd_gpio_table[0]);
 
     for (i = 0; i < gpcfg_num; ++i) {
-        hal_gpio_init(&brd_gpio_table[i]);
+    	hal_gpio_init(&brd_gpio_table[i]);
     }
-    
-    hal_i2c_init(&brd_i2c1_dev);
     hal_i2c_init(&brd_i2c2_dev);
-    
+    hal_i2c_init(&brd_i2c3_dev);
+    hal_i2c_init(&brd_i2c4_dev);
 }
 /**
 * @brief This function handles System tick timer.
 */
 void SysTick_Handler(void)
 {
-  HAL_IncTick();
-  krhino_intrpt_enter();
-  krhino_tick_proc();
-  krhino_intrpt_exit();
+    krhino_intrpt_enter();
+
+    HAL_IncTick();
+    krhino_tick_proc();
+
+#ifdef LITTLEVGL_DEVELOPERKIT
+    lv_tick_inc(1);
+#endif
+
+    krhino_intrpt_exit();
 }
 
+#if (RHINO_CONFIG_PANIC != 1)
 void HardFault_Handler(void)
 {
   while (1)
@@ -136,6 +172,7 @@ void HardFault_Handler(void)
    // #endif
   }
 }
+#endif
 
 /**
   * @brief  Retargets the C library printf function to the USART.

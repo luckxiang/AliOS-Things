@@ -1,9 +1,6 @@
 aos_global_config.set('no_with_lwip', 1)
 
 src = Split('''
-    soc/soc_impl.c
-    soc/hook_impl.c
-    soc/trace_impl.c
     soc/uart.c
     main/arg_options.c
     main/main.c
@@ -37,7 +34,7 @@ global_macros = Split('''
     CONFIG_LOGMACRO_DETAILS
     CONFIG_AOS_FATFS_SUPPORT
     CONFIG_AOS_FATFS_SUPPORT_MMC
-    CONFIG_AOS_FOTA_BREAKPOINT
+    CONFIG_AOS_UOTA_BREAKPOINT
 ''')
 
 component = aos_mcu_component('linuximpl', '', src)
@@ -89,9 +86,19 @@ if aos_global_config.app == 'yts':
     ''')
     for s in src_tmp:
         component.add_sources(s)
+		
+if aos_global_config.get('osal') == 'posix':
+	component.add_macros("CONFIG_OSAL_POSIX") 
+else:
+	src_tmp = Split('''
+		soc/soc_impl.c
+		soc/hook_impl.c
+		soc/trace_impl.c
+	''')
+	for s in src_tmp:
+		component.add_sources(s)
 
-
-component.add_comp_deps('utility/log', 'platform/arch/linux', 'kernel/vcall', 'kernel/init')
+component.add_comp_deps('utility/log', 'platform/arch/linux', 'osal', 'kernel/init')
 
 component.add_global_includes('include', 'csp/lwip/include')
 

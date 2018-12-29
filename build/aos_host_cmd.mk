@@ -220,12 +220,12 @@ CURRENT_TIME = $(shell $(DATE) +%Y%m%d.%H%M)
 
 
 SHOULD_I_WAIT_FOR_DOWNLOAD := $(filter download, $(MAKECMDGOALS))
-BUILD_STRING ?= $(strip $(filter-out $(MAKEFILE_TARGETS) download run total, $(MAKECMDGOALS)))
+BUILD_STRING ?= $(strip $(filter-out $(MAKEFILE_TARGETS) download run total export_linkkit_sdk, $(MAKECMDGOALS)))
 BUILD_STRING_TO_DIR = $(subst .,/,$(1))
 DIR_TO_BUILD_STRING = $(subst /,.,$(1))
 CLEANED_BUILD_STRING := $(BUILD_STRING)
 
-OUTPUT_DIR   := $(BUILD_DIR)/$(CLEANED_BUILD_STRING)$(BINS)
+OUTPUT_DIR   := $(BUILD_DIR)/$(CLEANED_BUILD_STRING)$(MBINS)
 AUTO_COMPONENT_DIR := $(OUTPUT_DIR)/auto_component
 
 # Newline Macro

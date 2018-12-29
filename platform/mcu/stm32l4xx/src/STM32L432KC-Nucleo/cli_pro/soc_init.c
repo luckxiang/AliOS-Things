@@ -79,6 +79,12 @@ static void MX_GPIO_Init(void);
 static void uart2_init(void);
 
 
+void hal_reboot(void)
+{
+    NVIC_SystemReset();
+}
+
+
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
@@ -209,7 +215,7 @@ static void MX_USART2_UART_Init(void)
 
 static void uart2_init(void)
 {
-    uart_0.port = PORT_UART2;
+    uart_0.port = 0;
     uart_0.config.baud_rate = 115200;
     uart_0.config.data_width = DATA_WIDTH_8BIT;
     uart_0.config.flow_control = FLOW_CONTROL_DISABLED;

@@ -16,10 +16,8 @@ HOST_OPENOCD := rtl8710bn
 $(NAME)_TYPE := kernel
 
 $(NAME)_COMPONENTS += platform/arch/arm/armv7m
-#$(NAME)_COMPONENTS += libc rhino hal netmgr framework.common mbedtls cjson cli digest_algorithm
-$(NAME)_COMPONENTS += libc rhino hal netmgr framework.common cli digest_algorithm protocols.net
-$(NAME)_COMPONENTS += alicrypto
-#$(NAME)_COMPONENTS += protocols.mesh
+#$(NAME)_COMPONENTS += libc rhino hal netmgr middleware.common mbedtls cjson cli digest_algorithm
+$(NAME)_COMPONENTS += libc rhino hal netmgr middleware.common cli digest_algorithm network.lwip
 
 
 $(NAME)_COMPONENTS += platform/mcu/rtl8710bn/sdk
@@ -45,15 +43,15 @@ GLOBAL_INCLUDES += sdk
 GLOBAL_INCLUDES += aos
 GLOBAL_INCLUDES += peripherals
 GLOBAL_INCLUDES += ../include
-GLOBAL_INCLUDES += ../../../include/hal/soc
-GLOBAL_INCLUDES += ../../../kernel/protocols/net/include
-GLOBAL_INCLUDES += ../../../kernel/protocols/net/include/lwip
+GLOBAL_INCLUDES += ../../../kernel/hal/include/soc
+GLOBAL_INCLUDES += ../../../network/lwip/include
+GLOBAL_INCLUDES += ../../../network/lwip/include/lwip
 
 $(NAME)_INCLUDES += .
 $(NAME)_INCLUDES += ../include
-$(NAME)_INCLUDES += ../../../include/hal/soc
-$(NAME)_INCLUDES += ../../../kernel/protocols/net/include
-$(NAME)_INCLUDES += ../../../kernel/protocols/net/include/lwip
+$(NAME)_INCLUDES += ../../../kernel/hal/include/soc
+$(NAME)_INCLUDES += ../../../network/lwip/include
+$(NAME)_INCLUDES += ../../../network/lwip/include/lwip
 $(NAME)_INCLUDES += arch
 $(NAME)_INCLUDES += aos
 $(NAME)_INCLUDES += peripherals
@@ -110,22 +108,21 @@ $(NAME)_INCLUDES += sdk/component/common/mbed/targets/hal/rtl8711b
                  -mfpu=fpv4-sp-d16 \
                  -mfloat-abi=hard \
                  -DCONFIG_PLATFORM_8711B \
-                 -DM3\
-                 -fno-short-enums
+                 -DM3
 
 GLOBAL_CFLAGS += -mcpu=cortex-m4 \
                  -march=armv7-m \
                  -mthumb -mthumb-interwork \
                  -mlittle-endian \
                  -DCONFIG_PLATFORM_8711B \
-                 -DM3\
-                 -fno-short-enums                 
+                 -DM3 \
+                 -fno-short-enums
 
 GLOBAL_CFLAGS += -w
 
 GLOBAL_LDFLAGS += -L $(SOURCE_ROOT)/platform/mcu/rtl8710bn
 #GLOBAL_LDFLAGS += -I $(SOURCE_ROOT)/platform/mcu/rtl8710bn
-GLOBAL_LDFLAGS += -T $(SOURCE_ROOT)/platform/mcu/rtl8710bn/script/rlx8711B-symbol-v02-img2_xip1.ld                 
+# GLOBAL_LDFLAGS += -T $(SOURCE_ROOT)/platform/mcu/rtl8710bn/script/rlx8711B-symbol-v02-img2_xip1.ld                 
 #GLOBAL_LDFLAGS += $(SOURCE_ROOT)/platform/mcu/rtl8710bn/bin/boot_all.o
 GLOBAL_LDFLAGS += -L$(SOURCE_ROOT)/platform/mcu/rtl8710bn/lib/ -l_platform -l_wlan -l_wps -l_p2p -l_rtlstd
 
@@ -142,13 +139,13 @@ GLOBAL_LDFLAGS += -L$(SOURCE_ROOT)/platform/mcu/rtl8710bn/lib/ -l_platform -l_wl
 
 GLOBAL_LDFLAGS += -mcpu=cortex-m4        \
                   -mthumb\
-                  -g --specs=nano.specs \
                   -Os \
                   -nostartfiles \
                   -Wl,--no-enum-size-warning \
                   -Wl,--no-wchar-size-warning \
                   -Wl,--gc-sections \
-                  -Wl,--cref                 
+                  -Wl,--cref \
+                  $(CLIB_LDFLAGS_NANO_FLOAT)                 
 
 $(NAME)_CFLAGS  += -Wall -Werror -Wno-unused-variable -Wno-unused-parameter -Wno-implicit-function-declaration
 $(NAME)_CFLAGS  += -Wno-type-limits -Wno-sign-compare -Wno-pointer-sign -Wno-uninitialized
@@ -159,10 +156,10 @@ $(NAME)_CFLAGS  += -Wno-unused-value -Wno-strict-aliasing
 #$(NAME)_SOURCES += aos/trace_impl.c
 #$(NAME)_SOURCES += aos/aos.c
 #$(NAME)_SOURCES += soc_impl.c
-#$(NAME)_INCLUDES += ../../../kernel/vcall/mico/include
-#$(NAME)_INCLUDES += ../../../framework/protocol/alink/os/platform
+#$(NAME)_INCLUDES += ../../../osal/mico/include
+#$(NAME)_INCLUDES += ../../../middleware/alink/protocol/os/platform
 #$(NAME)_INCLUDES += ../include
-#$(NAME)_INCLUDES += ../../../include/hal/soc
+#$(NAME)_INCLUDES += ../../../kernel/hal/include/soc
 #$(NAME)_INCLUDES += ../../../include/aos
 #$(NAME)_INCLUDES += arch
 #$(NAME)_INCLUDES += peripherals
@@ -172,11 +169,15 @@ $(NAME)_SOURCES := aos/soc_impl.c          \
                    aos/aos.c \
                    aos/aos_osdep.c \
                    aos/ethernetif.c \
+                   aos/qc.c \
                    hal/uart.c \
                    hal/flash.c  \
                    hal/hw.c  \
                    hal/wifi_port.c \
                    hal/ota_port.c \
+                   hal/gpio.c \
+                   hal/wdg.c 
+		   
 #$(NAME)_SOURCES  += hal/uart.c
 #$(NAME)_SOURCES  += hal/flash.c
 #$(NAME)_SOURCES  += hal/hw.c
@@ -187,3 +188,5 @@ $(NAME)_SOURCES := aos/soc_impl.c          \
 
 
 #$(NAME)_COMPONENTS += platform/mcu/rtl8710bn/peripherals
+
+PING_PONG_OTA := 1

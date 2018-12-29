@@ -49,7 +49,7 @@ global_cflags = Split('''
 
 global_ldflags = Split('''
         -mcpu=ck802
-        -Wl,-ckmap='ckhobbit1_2.map'
+        -Wl,-ckmap='cb2201.map'
         -lm
 ''')
 
@@ -62,7 +62,7 @@ global_macro = Split('''
         CONFIG_AOS_KV_BUFFER_SIZE=8192
         CONFIG_AOS_CLI_BOARD
         CONFIG_AOS_CLI
-        CONFIG_AOS_FOTA_BREAKPOINT
+        CONFIG_AOS_UOTA_BREAKPOINT
         WITH_LWIP
 ''')
 
@@ -71,9 +71,9 @@ dependencis = Split('''
         kernel/rhino
         kernel/hal
         kernel/init
-        kernel/vcall
-        kernel/protocols/net
-        framework/common 
+        osal
+        network/lwip
+        middleware/common 
         utility/cjson
         tools/cli
         platform/mcu/csky/hal_init
@@ -122,7 +122,7 @@ if aos_global_config.get('HOST_CHIP') == 'zx297100':
     src.extend(chip_src)
     src.extend(driver_src)
 else:
-    global_includes.append('csi/csi_driver/csky/hobbit1_2/include')
+    global_includes.append('csi/csi_driver/csky/ch2201/include')
     global_includes.append('csi/csi_driver/csky/common/include')
     tmp_src = Split('''
             csi/csi_driver/csky/common/spi/dw_spi.c
@@ -141,16 +141,16 @@ else:
             csi/csi_driver/csky/common/aes/ck_aes.c
             csi/csi_driver/csky/common/rsa/ck_rsa.c
             csi/csi_driver/csky/common/sha/ck_sha_v1.c
-            csi/csi_driver/csky/hobbit1_2/startup.S
-            csi/csi_driver/csky/hobbit1_2/vectors.S
-            csi/csi_driver/csky/hobbit1_2/system.c
-            csi/csi_driver/csky/hobbit1_2/isr.c
-            csi/csi_driver/csky/hobbit1_2/lib.c
-            csi/csi_driver/csky/hobbit1_2/devices.c
-            csi/csi_driver/csky/hobbit1_2/pinmux.c
-            csi/csi_driver/csky/hobbit1_2/trap_c.c
-            csi/csi_driver/csky/hobbit1_2/ck_sys_freq.c
-            csi/csi_driver/csky/hobbit1_2/novic_irq_tbl.c
+            csi/csi_driver/csky/ch2201/startup.S
+            csi/csi_driver/csky/ch2201/vectors.S
+            csi/csi_driver/csky/ch2201/system.c
+            csi/csi_driver/csky/ch2201/isr.c
+            csi/csi_driver/csky/ch2201/lib.c
+            csi/csi_driver/csky/ch2201/devices.c
+            csi/csi_driver/csky/ch2201/pinmux.c
+            csi/csi_driver/csky/ch2201/trap_c.c
+            csi/csi_driver/csky/ch2201/ck_sys_freq.c
+            csi/csi_driver/csky/ch2201/novic_irq_tbl.c
             csi/drivers/eth/csi_eth_enc28j60.c
             csi/libs/libc/malloc.c
         ''')
