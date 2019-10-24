@@ -76,6 +76,10 @@
 #include "lwip/etharp.h"
 #include "lwip/prot/dhcp.h"
 
+#ifdef FEATURE_UND_SUPPORT
+#include "und/und.h"
+#endif
+
 #include <string.h>
 
 /** DHCP_CREATE_RAND_XID: if this is set to 1, the xid is created using
@@ -156,6 +160,10 @@ static u8_t xid_initialised;
 
 static struct udp_pcb *dhcp_pcb;
 static u8_t dhcp_pcb_refcount;
+
+#if DHCP_TIMEOUT_WORKAROUND_FOR_BK_WIFI
+static u8_t dhcp_timeout_reboot = 0;
+#endif
 
 /* DHCP client state machine functions */
 static err_t dhcp_discover(struct netif *netif);
@@ -715,6 +723,9 @@ dhcp_start(struct netif *netif)
   /* check MTU of the netif */
   if (netif->mtu < DHCP_MAX_MSG_LEN_MIN_REQUIRED) {
     LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_TRACE, ("dhcp_start(): Cannot use this netif with DHCP: MTU is too small\n"));
+#ifdef FEATURE_UND_SUPPORT
+    und_update_statis(UND_STATIS_NETWORK_FAIL_IDX, UND_STATIS_NETWORK_DHCP_FAIL_REASON);
+#endif
     return ERR_MEM;
   }
 
@@ -724,6 +735,9 @@ dhcp_start(struct netif *netif)
     dhcp = (struct dhcp *)mem_malloc(sizeof(struct dhcp));
     if (dhcp == NULL) {
       LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_TRACE, ("dhcp_start(): could not allocate dhcp\n"));
+#ifdef FEATURE_UND_SUPPORT
+      und_update_statis(UND_STATIS_NETWORK_FAIL_IDX, UND_STATIS_NETWORK_DHCP_FAIL_REASON);
+#endif
       return ERR_MEM;
     }
 
@@ -749,6 +763,9 @@ dhcp_start(struct netif *netif)
   LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_TRACE, ("dhcp_start(): starting DHCP configuration\n"));
 
   if (dhcp_inc_pcb_refcount() != ERR_OK) { /* ensure DHCP PCB is allocated */
+#ifdef FEATURE_UND_SUPPORT
+    und_update_statis(UND_STATIS_NETWORK_FAIL_IDX, UND_STATIS_NETWORK_DHCP_FAIL_REASON);
+#endif
     return ERR_MEM;
   }
   dhcp->pcb_allocated = 1;
@@ -766,9 +783,17 @@ dhcp_start(struct netif *netif)
   result = dhcp_discover(netif);
   if (result != ERR_OK) {
     /* free resources allocated above */
+#ifdef FEATURE_UND_SUPPORT
+    und_update_statis(UND_STATIS_NETWORK_FAIL_IDX, UND_STATIS_NETWORK_DHCP_FAIL_REASON);
+#endif
     dhcp_stop(netif);
     return ERR_MEM;
   }
+
+#if DHCP_TIMEOUT_WORKAROUND_FOR_BK_WIFI
+  dhcp_start_timeout_check(DHCP_TIMER_TIMEOUT);
+#endif
+
   return result;
 }
 
@@ -1096,6 +1121,10 @@ dhcp_bind(struct netif *netif)
   /* netif is now bound to DHCP leased address - set this before assigning the address
      to ensure the callback can use dhcp_supplied_address() */
   dhcp_set_state(dhcp, DHCP_STATE_BOUND);
+
+#if DHCP_TIMEOUT_WORKAROUND_FOR_BK_WIFI
+  dhcp_stop_timeout_check();
+#endif
 
   netif_set_addr(netif, &dhcp->offered_ip_addr, &sn_mask, &gw_addr);
   /* interface is used by routing now that an address is set */
@@ -1929,5 +1958,47 @@ dhcp_supplied_address(const struct netif *netif)
   }
   return 0;
 }
+
+#if DHCP_TIMEOUT_WORKAROUND_FOR_BK_WIFI
+void dhcp_check_status(void)
+{
+  struct netif *netif = netif_list;
+
+  while (netif != NULL) {
+    struct dhcp *dhcp = netif_dhcp_data(netif);
+
+    if(dhcp != NULL){
+      if(dhcp->state != DHCP_STATE_BOUND){
+        if (dhcp_timeout_reboot >= DHCP_TIMEOUT_TRIES_REBOOT) {
+          dhcp_timeout_reboot = 0;
+          aos_reboot();  // for the case that bk wifi state machine crash
+          return;
+        }
+
+        dhcp_cleanup(netif);
+        sys_untimeout(dhcp_check_status, NULL);
+        LWIP_DEBUGF(DHCP_DEBUG, ("dhcp timeout, bk_wlan_connection_loss\r\n"));
+        bk_wlan_connection_loss();
+        dhcp_timeout_reboot++;
+        return;
+      }
+    }
+
+    netif = netif->next;
+  }
+}
+
+void dhcp_stop_timeout_check(void)
+{
+  sys_untimeout(dhcp_check_status, NULL);
+}
+
+void dhcp_start_timeout_check(u32_t secs)
+{
+  sys_timeout(secs, dhcp_check_status, NULL);
+}
+
+
+#endif
 
 #endif /* LWIP_IPV4 && LWIP_DHCP */

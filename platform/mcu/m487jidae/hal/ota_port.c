@@ -1,7 +1,8 @@
 #include <k_api.h>
 #include <string.h>
-#include "hal/hal.h"
 #include <CheckSumUtils.h>
+
+#include "aos/hal/flash.h"
 
 #define KV_HAL_OTA_CRC16                "hal_ota_crc16"
 #define OTA_FLAG_MAGIC                  0xA5A5A5A5
@@ -27,6 +28,12 @@ typedef struct {
 	ota_reboot_info_t m_ota_info;
 } Ota_flag;
 #pragma pack()
+
+#if defined( USE_OTA_SPIM_FLASH)
+void spim_flash_init (void);
+int spim_flash_erase_write (volatile uint32_t* off_set, uint8_t* in_buf ,uint32_t in_buf_len);
+int spim_flash_read (volatile uint32_t* off_set, uint8_t* out_buf, uint32_t out_buf_len);
+#endif
 
 static ota_reboot_info_t ota_info;
 static CRC16_Context contex;
@@ -125,6 +132,10 @@ static int numicro_ota_init(hal_ota_module_t *m, void *something)
 		LOG("--------get crc16 context.crc=%d!--------\n",contex.crc);
 	}
 
+#if defined( USE_OTA_SPIM_FLASH)
+    spim_flash_init ();
+#endif
+
 	return 0;
 }
 
@@ -157,7 +168,12 @@ static int numicro_ota_write(hal_ota_module_t *m, volatile uint32_t* off_set, ui
 	}
 	CRC16_Update( &contex, in_buf, in_buf_len);
 
-	ret = hal_flash_write(pno, &_off_set, in_buf, in_buf_len);
+#if defined( USE_OTA_SPIM_FLASH)
+    ret = spim_flash_erase_write (&_off_set, in_buf, in_buf_len);
+#else
+    ret = hal_flash_write(pno, &_off_set, in_buf, in_buf_len);
+#endif
+
 	ota_info.ota_len += in_buf_len;
 
 	return ret;
@@ -180,9 +196,12 @@ static int numicro_ota_write(hal_ota_module_t *m, volatile uint32_t* off_set, ui
  */
 static int numicro_ota_read(hal_ota_module_t *m,  volatile uint32_t* off_set, uint8_t* out_buf, uint32_t out_buf_len)
 {
-	hal_partition_t pno = HAL_PARTITION_OTA_TEMP;
-
-	hal_flash_read(pno, (uint32_t*)off_set, out_buf, out_buf_len);
+#if defined( USE_OTA_SPIM_FLASH)
+    spim_flash_read ((uint32_t*)off_set, out_buf, out_buf_len);
+#else
+    hal_partition_t pno = HAL_PARTITION_OTA_TEMP;
+    hal_flash_read(pno, (uint32_t*)off_set, out_buf, out_buf_len);
+#endif
 
 	return 0;
 }

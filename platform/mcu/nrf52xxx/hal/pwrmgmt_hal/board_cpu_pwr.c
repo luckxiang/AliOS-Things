@@ -14,11 +14,10 @@ provides low-level interface for setting CPU P-states.
 
 #include <k_api.h>
 
-#if RHINO_CONFIG_CPU_PWR_MGMT
+#if (PWRMGMT_CONFIG_CPU_LOWPOWER > 0)
 
-#include <cpu_pwr_api.h>
 #include <cpu_pwr_hal_lib.h>
-#include <pwr_debug.h>
+#include <pwrmgmt_debug.h>
 #include <cpu_tickless.h>
 #include <nrf.h>
 
@@ -53,14 +52,14 @@ static pwr_status_t board_cpu_c_state_set(uint32_t cpuCState, int master)
 
             /* put CPU into C1 state, for ARM we can call WFI instruction
                to put CPU into C1 state. */
-            PWR_DBG(DBG_INFO, "enter C1\n");
+            PWRMGMT_LOG(PWRMGMT_LOG_DBG, "enter C1\n");
 
             /* Wait for an event. */
             __WFI();
             break;
 
         default:
-            PWR_DBG(DBG_ERR, "invalid C state: C%d\n", cpuCState);
+            PWRMGMT_LOG(PWRMGMT_LOG_ERR, "invalid C state: C%d\n", cpuCState);
             break;
     }
 
@@ -144,13 +143,4 @@ pwr_status_t board_cpu_pwr_init(void)
     return retVal;
 }
 
-void cpu_pwr_suspend_devices() {
-    app_uart_close();
-}
-
-void cpu_pwr_resume_devices() {
-    hal_uart_init(NULL);
-}
-
-#endif /* RHINO_CONFIG_CPU_PWR_MGMT */
-
+#endif /* PWRMGMT_CONFIG_CPU_LOWPOWER */

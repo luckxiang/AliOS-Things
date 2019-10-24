@@ -12,11 +12,17 @@
 #include <stm32l496xx.h>
 #include "stm32l4xx_hal.h"
 #include "stm32l4xx_hal_tim.h"
-#include "real_time_test.h"
+#include "stm32l4xx_hal_rcc.h"
+
+typedef void (*intrpt_callback_t)(void);
+extern intrpt_callback_t highpri_intrpt_func;
+extern intrpt_callback_t lowpri_intrpt_func;
 
 float soc_cpu_clock_freq_mhz(void)
 {
-    return 80.0;
+   uint32_t hclk;
+   hclk = HAL_RCC_GetHCLKFreq();
+   return hclk/1000000.0;
 }
 
 void hal_rttest_intrpt_init() {
@@ -53,7 +59,7 @@ void TIM2_IRQHandler(void)
 {
     if(lowpri_intrpt_func != NULL)
         lowpri_intrpt_func();
-    
+
     tim_uper_32++;
     HAL_TIM_IRQHandler(&Tim2Handle);
 }

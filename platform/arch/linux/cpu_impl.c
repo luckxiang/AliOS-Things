@@ -14,7 +14,8 @@
 #include <pthread.h>
 #include <errno.h>
 
-#include <aos/aos.h>
+#include "aos/kernel.h"
+#include "aos/list.h"
 
 #include <cpu_event.h>
 #include <k_api.h>
@@ -74,7 +75,7 @@ static klist_t g_event_list = { &g_event_list, &g_event_list };
 static klist_t g_recycle_list = { &g_recycle_list, &g_recycle_list };
 static dlist_t g_io_list = AOS_DLIST_INIT(g_io_list);
 static int cpu_event_inited;
-extern volatile uint64_t cpu_flag;
+extern volatile uint64_t g_cpu_flag;
 
 typedef struct {
     dlist_t node;
@@ -107,7 +108,7 @@ void syscall_error_label(void)
     assert(0);
 }
 
-void unlock_spin(void)
+void os_unlock_sys_spin(void)
 {
     int ret;
     ret = pthread_mutex_unlock(&spin_lock);
@@ -201,7 +202,6 @@ static inline int in_signal(void)
 sigset_t cpu_intrpt_save(void)
 {
     sigset_t    oldset = {0};
-    int ret;
 
     sigprocmask(SIG_BLOCK, &cpu_sig_set, &oldset);
 
@@ -221,8 +221,6 @@ sigset_t cpu_intrpt_save(void)
 
 void cpu_intrpt_restore(sigset_t cpsr)
 {
-    int ret;
-
     if (!in_signal()) {
         if (g_active_task[cpu_cur_get()]) {
             task_ext_t *tcb_ext = (task_ext_t *)g_active_task[cpu_cur_get()]->task_stack;
@@ -276,17 +274,17 @@ void cpu_tmr_sync(void)
     while (loop) {
         switch (RHINO_CONFIG_CPU_NUM) {
             case 2:
-                if (cpu_flag == 2u) {
+                if (g_cpu_flag == 2u) {
                     loop = 0;
                 }
                 break;
             case 3:
-                if (cpu_flag == 6u) {
+                if (g_cpu_flag == 6u) {
                     loop = 0;
                 }
                 break;
             case 4:
-                if (cpu_flag == 14u) {
+                if (g_cpu_flag == 14u) {
                     loop = 0;
                 }
                 break;

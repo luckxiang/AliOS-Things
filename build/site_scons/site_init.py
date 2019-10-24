@@ -69,7 +69,7 @@ class aos_global_config:
 
         if last_value != value and key in aos_global_config.config_observers:
             func_comp = aos_global_config.config_observers[key]
-            for func, comp in func_comp.items():
+            for func, comp in list(func_comp.items()):
                 func(comp)
             func_comp.clear()
 
@@ -253,9 +253,7 @@ def do_process(process):
     process.do_action()
 
 
-class process(object):
-    __metaclass__ = abc.ABCMeta
-
+class process(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def do_action(aos_global_config):
         return
@@ -308,8 +306,8 @@ class base_process_impl(process):
         aos_global_config.aos_env.Append(CPPDEFINES='BUILD_BIN')
         
         #temporarily add include path aos.h need
-        aos_global_config.component_includes.append('#kernel/rhino/fs/kv/include')
-        aos_global_config.component_includes.append('#kernel/yloop/include')
+        aos_global_config.component_includes.append('#kernel/fs/kv/include')
+        aos_global_config.component_includes.append('#network/yloop/include')
         aos_global_config.component_includes.append('#network/include')
 
 def pre_config(config):
@@ -396,7 +394,7 @@ class dependency_process_impl(process):
 
         testcase_file = os.path.join(auto_component_dir,'testcase_register.c')
         source_codes = "/*\n * warning: testcase collection code is auto generate, please don't change!!!\n */\n\n"
-        source_codes += "#include <aos/aos.h>\n\n"
+        source_codes += "#include \"aos/kernel.h\"\n\n"
 
         for function_name in test_function:
             source_codes +=  "extern void %s(void);\n"%(function_name)
@@ -442,8 +440,8 @@ class dependency_process_impl(process):
         aos_component('auto_component', src)
 
     def __pre_config(self):
-        for config, func_comp in self.config.config_observers.items():
-            for func, comp in func_comp.items():
+        for config, func_comp in list(self.config.config_observers.items()):
+            for func, comp in list(func_comp.items()):
                 len_deps = len(comp.get_comp_deps())
                 func(comp)
                 if len_deps != len(comp.get_comp_deps()):
@@ -530,7 +528,14 @@ class ide_transfer_process_impl(process):
             exit(-1)
 
         buildstring = self.config.app + '@' + self.config.board
-        proj_gen_dir = 'projects/autogen/'+buildstring+'/'+self.config.ide+'_project'
+
+        if self.config.ide == 'iar':
+            proj_gen_dir = 'projects/IAR/'+buildstring+'/'+self.config.ide+'_project'
+        elif self.config.ide == 'keil':
+            proj_gen_dir = 'projects/Keil/'+buildstring+'/'+self.config.ide+'_project'
+        else:
+            pass
+
         transfer_cmd = 'python build/scripts/'+self.config.ide+'.py ' + buildstring
         opts_dir = proj_gen_dir+'/opts'
 
@@ -837,9 +842,7 @@ class create_bin_process_impl(process):
             env.Program(bin_file, stripped_file, LINKCOM=bin_cmd, LINKCOMSTR=linkcomstr)
 
 
-class aos_command(object):
-    __metaclass__ = abc.ABCMeta
-
+class aos_command(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def dispatch_action(self, target, source, env):
         return
@@ -856,9 +859,9 @@ def ucube_main(args):
         target=app+'@'+board
         workdir = None
         bindir = None
-        if args.has_key('WORKPATH'):
+        if 'WORKPATH' in args:
             workdir=args.get('WORKPATH')
-        if args.has_key('BINDIR'):
+        if 'BINDIR' in args:
             bindir=args.get('BINDIR')
         ret = aos_upload(target, workdir, bindir)
         return ret
@@ -872,13 +875,13 @@ def ucube_main(args):
         bindir=None
         startclient=False
         gdb_args=None
-        if args.has_key('WORKPATH'):
+        if 'WORKPATH' in args:
             workdir=args.get('WORKPATH')
-        if args.has_key('BINDIR'):
+        if 'BINDIR' in args:
             bindir=args.get('BINDIR')
-        if args.has_key('STARTCLIENT'):
+        if 'STARTCLIENT' in args:
             startclient=args.get('STARTCLIENT')
-        if args.has_key('GDBARGS'):
+        if 'GDBARGS' in args:
             gdb_args=args.get('GDBARGS')
         ret = aos_debug(target, workdir, bindir, startclient, gdb_args)
         return ret

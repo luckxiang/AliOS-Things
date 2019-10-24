@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include "rda5981_sys_data.h"
 #include "rda_def.h"
-#include <hal/soc/flash.h>
+#include "aos/hal/flash.h"
 #include "rda_flash.h"
 
 static r_u32 sys_data_location = 0;
@@ -357,14 +357,20 @@ r_s32 rda5981_flash_write_mac_addr(r_u8 *mac_addr)
 }
 #endif
 
-#define HAL_PARTITION_SYS_DATA HAL_PARTITION_MAX
+#define HAL_PARTITION_SYS_DATA      HAL_PARTITION_CUSTOM_1
 
 r_s32 rda5981_init_sys_data()
 {
     //WLAND_DBG(INFO, "Enter set userdata addr: %x:%x:%x\r\n", sys_data_addr);
     hal_partition_t pno = HAL_PARTITION_SYS_DATA;
-    hal_logic_partition_t *partition_info;
-    partition_info = hal_flash_get_info(pno);
+
+    hal_logic_partition_t info;
+    hal_logic_partition_t *partition_info = &info;
+
+    if (hal_flash_info_get(pno, partition_info) != 0) {
+        return -1;
+    }
+
     if ((partition_info->partition_start_addr)&(SECTOR_SIZE-1))
         return -1;
     if ((partition_info->partition_start_addr) <= RDA5991H_PARTITION_TABLE_END_ADDR)

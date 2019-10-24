@@ -1,1 +1,1 @@
-linux_only_targets="linuxapp helloworld helloworld_nocli linkkitapp alinkapp networkapp tls uDataapp hdlcapp.hdlcserver wifihalapp coapapp nano linkkit_gateway blink linkkit_sched meshapp acapp netmgrapp mqttapp wifimonitor vflashdemo athostapp"
+linux_only_targets="athostapp blink coapapp helloworld http2app httpapp linkkit_gateway linkkitapp lwm2mapp meshapp modbus_demo mqttapp otaapp tls udata_demo.sensor_cloud_demo udata_demo.sensor_local_demo udata_demo.udata_cloud_demo udata_demo.udata_local_demo udataapp ulocation.baseapp yts"

@@ -19,7 +19,8 @@
 #include "nu_bitutil.h"
 #include "hal_status.h"
 #include <k_api.h>
-#include <hal/hal.h>
+
+#include "aos/hal/rng.h"
 #include "board.h"
 
 #define DEF_MISSION_TIMEOUT		100
@@ -145,7 +146,7 @@ static int32_t hal_rng_read(random_dev_t* random, void *buf, int32_t bytes)
 	while ( bytes > 0 )
 	{
 		/* start PRNG with seed 0x55 */
-		PRNG_Open(CRPT, PRNG_KEY_SIZE_256, 1, (unsigned int)aos_now_ms());
+		PRNG_Open(CRPT, PRNG_KEY_SIZE_256, PRNG_SEED_CONT, (unsigned int)aos_now_ms());
 		PRNG_Start(CRPT);
 		
 		if ( krhino_sem_take(&prng_sem, DEF_MISSION_TIMEOUT) != RHINO_SUCCESS )

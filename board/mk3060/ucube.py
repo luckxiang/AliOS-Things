@@ -5,5 +5,4 @@ aos_global_config.add_ld_files('memory.ld.S')
 
 build_types=""
 
-supported_targets="alinkapp helloworld linuxapp meshapp tls uDataapp networkapp acapp linkkitapp mqttapp coapapp linkkit_gateway linkkit_sched"
-linux_only_targets="itls_app sst_app nano wifihalapp helloworld_nocli wifimonitor blink id2_app vflashdemo prov_app netmgrapp hdlcapp.hdlcserver athostapp"
+linux_only_targets="athostapp blink coapapp helloworld http2app httpapp id2_app itls_app jsengine_app linkkit_gateway linkkitapp lwm2mapp meshapp modbus_demo mqttapp otaapp prov_app tls udata_demo.sensor_cloud_demo udata_demo.sensor_local_demo udata_demo.udata_cloud_demo udata_demo.udata_local_demo udataapp ulocation.baseapp yts"

@@ -1,13 +1,18 @@
 /*
  * Copyright (C) 2015-2017 Alibaba Group Holding Limited
  */
-#include <k_api.h>
-#include "hal/soc/uart.h"
-#include "hal/soc/timer.h"
+
+#include <compiler.h>
+
+#include "k_api.h"
+
+#include "aos/hal/uart.h"
+#include "aos/hal/timer.h"
+
 #include "saml21.h"
 #include "driver_init.h"
 #include "atcmd_config_platform.h"
-#include <compiler.h>
+
 
 uart_dev_t uart_0 =
 {
@@ -72,4 +77,9 @@ int32_t hal_uart_recv_II(uart_dev_t *uart, void *data, uint32_t expect_size, uin
         stdio_io_read((const uint8_t *)data, expect_size);
     }
     return 0;
+}
+
+int32_t hal_uart_finalize(uart_dev_t *uart)
+{
+   return 0;
 }

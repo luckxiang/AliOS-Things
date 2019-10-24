@@ -2,16 +2,19 @@
  * Copyright (C) 2015-2017 Alibaba Group Holding Limited
  */
 
-#include <yunit.h>
-#include <yts.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <aos/errno.h>
-#include <aos/network.h>
 
-#include <aos/mbedtls_ssl.h>
+#include "yunit/yts.h"
+#include "yunit/yunit.h"
+
+#include <aos/errno.h>
+
+#include <network/network.h>
+
+#include <mbedtls/mbedtls_ssl.h>
 
 const char *mbedtls_real_ca_pem = "-----BEGIN CERTIFICATE-----\n"   \
                                   "MIIDtzCCAp+gAwIBAgIJAOxbLdldR1+SMA0GCSqGSIb3DQEBBQUAMHIxCzAJBgNV\n"\

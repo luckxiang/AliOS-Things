@@ -36,10 +36,6 @@ _memmap_cacheattr_wt_allvalid = 0x22222112;
 _memmap_cacheattr_bp_allvalid = 0x22222222;
 PROVIDE(_memmap_cacheattr_reset = _memmap_cacheattr_wb_trapnull);
 
-/* recovery */
-_rec_text_start = ORIGIN(irom0_0_seg);
-_rec_text_end   = ORIGIN(irom0_0_seg) + 0x4000;
-_rec_data_end   = _rec_text_end + 0xC00;
 _begin_of_ram   = ORIGIN(dram0_0_seg);
 _end_of_ram     = ORIGIN(dram0_0_seg) + LENGTH(dram0_0_seg);
 _SYS_STACK_SIZE_ = 0x800;
@@ -101,13 +97,25 @@ SECTIONS
     *(.entry.text)
     *(.init.literal)
     *(.init)
-    *esp8266.a:entry.o(.literal .text .literal.* .text.*)
+    *mcu_esp8266.a:entry.o(.literal .text .literal.* .text.*)
     *libmain.a:spi_flash.o(.literal .text .literal.* .text.*)
-    *xtensa.a:xtensa_vectors.o(.literal .text .literal.* .text.*)
-    *xtensa.a:port.o(.literal .text .literal.* .text.*)
+    *arch_xtensa_lx106.a:xtensa_vectors.o(.literal .text .literal.* .text.*)
+    *arch_xtensa_lx106.a:port.o(.literal .text .literal.* .text.*)
+
+    *rhino.a:(.literal.ready_list_add_head .text.ready_list_add_head)
+    *rhino.a:(.literal.ready_list_add_tail .text.ready_list_add_tail)
+    *rhino.a:(.literal.ready_list_add .text.ready_list_add)
+    *rhino.a:(.literal.ringbuf_push .text.ringbuf_push)
+    *rhino.a:(.literal.pend_task_wakeup .text.pend_task_wakeup)
+    *rhino.a:(.literal.buf_queue_send .text.buf_queue_send)
+    *rhino.a:(.literal.krhino_buf_queue_send .text.krhino_buf_queue_send)
+    *rhino.a:(.literal.k_err_proc .text.k_err_proc)
+
     *(.literal .text)
     _text_end = ABSOLUTE(.);
     _etext = .;
+    . = ALIGN (1024);
+    _iram_heap_start = ABSOLUTE(.);
   } >iram1_0_seg :iram1_0_phdr
 
   .irom0.text : ALIGN(4)
@@ -151,23 +159,16 @@ SECTIONS
   {
     . = ALIGN (8);
     _bss_start = ABSOLUTE(.);
-    *recovery.a:(.bss .bss.* COMMON)
-    *nbpatch.a:(.bss .bss.* COMMON)
-    *xz-embedded.a:(.bss .bss.* COMMON)
-    *esp8266.a:rec_sys.o(.bss .bss.* COMMON)
-    *esp8266.a:rec_flash.o(.bss .bss.* COMMON)
-    *esp8266.a:rec_uart.o(.bss .bss.* COMMON)
-    *esp8266.a:heap_iram.o(.bss .bss.* COMMON)
-    *esp8266.a:entry.o(.bss .bss.* COMMON)
+    *mcu_esp8266.a:flash.o(.bss .bss.* COMMON)
+    *mcu_esp8266.a:heap_iram.o(.bss .bss.* COMMON)
+    *mcu_esp8266.a:entry.o(.bss .bss.* COMMON)
     *libmain.a:spi_flash.o(.bss .bss.* COMMON)
     *libgcc.a:(.bss .bss.* COMMON)
-    *libespos.a:(.bss .bss.* COMMON)
     *libmain.a:(.bss .bss.* COMMON)
-    *xtensa.a:(.bss .bss.* COMMON)
+    *arch_xtensa_lx106.a:(.bss .bss.* COMMON)
     *libhal.a:(.bss .bss.* COMMON)
     *libnet80211.a:(.bss .bss.* COMMON)
-    *esp8266.a:(.bss .bss.* COMMON)
-    PROVIDE(_rec_heap_start =  ALIGN (8));
+    *mcu_esp8266.a:(.bss .bss.* COMMON)
     *libcirom.a:(.bss .bss.* COMMON)
     *libcrypto.a:(.bss .bss.* COMMON)
     *libwpa.a:(.bss .bss.* COMMON)
@@ -182,13 +183,6 @@ SECTIONS
     _bss_end = ABSOLUTE(.);
     _heap_start = ABSOLUTE(.);
   } >dram0_0_seg :dram0_0_bss_phdr
-
-  PROVIDE(_rec_heap_end = _end_of_ram - 2*_SYS_STACK_SIZE_);
-  PROVIDE(_rec_heap_len = _end_of_ram - 2*_SYS_STACK_SIZE_ - _rec_heap_start);
-
-  PROVIDE(_rec_main_stack_start = _end_of_ram - 2*_SYS_STACK_SIZE_);
-  PROVIDE(_rec_main_stack_end = _end_of_ram);
-  PROVIDE(_rec_main_stack_len = 2*_SYS_STACK_SIZE_);
 
   .lit4 : ALIGN(4)
   {

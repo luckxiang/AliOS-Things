@@ -2,9 +2,9 @@
  * Copyright (C) 2015-2017 Alibaba Group Holding Limited
  */
 
-#include "hal/soc/soc.h"
+#include "aos/hal/flash.h"
 #include <aos/kernel.h>
-#include <aos/aos.h>
+#include "aos/kernel.h"
 
 #include "esp_system.h"
 
@@ -116,7 +116,7 @@ const hal_logic_partition_t hal_partitions_2M_1024x1024[] =
     {
         .partition_owner            = HAL_FLASH_EMBEDDED,
         .partition_description      = "PARAMETER3",
-        .partition_start_addr       = 0x1f9000,
+        .partition_start_addr       = 0x1F9000,
         .partition_length           = 0x1000, //4k bytes
         .partition_options          = PAR_OPT_READ_EN | PAR_OPT_WRITE_EN,
     },

@@ -47,7 +47,7 @@ COREFILES=core/init.c \
 	core/tcp_out.c \
 	core/timeouts.c \
 	core/udp.c \
-        core/af_packet.c
+	core/pkt_print.c
 
 CORE4FILES=core/ipv4/autoip.c \
 	core/ipv4/dhcp.c \
@@ -153,8 +153,9 @@ SNMPFILES=apps/snmp/snmp_asn1.c \
 HTTPDFILES=apps/httpd/fs.c \
 	apps/httpd/httpd.c
 
-# LWIPERFFILES: IPERF server
-LWIPERFFILES=apps/lwiperf/lwiperf.c
+# IPERFFILES: IPERF client/server
+IPERFFILES=apps/iperf/iperf_task.c \
+        apps/iperf/iperf_cli.c
 
 # SNTPFILES: SNTP client
 SNTPFILES=apps/sntp/sntp.c
@@ -178,13 +179,18 @@ TELNETDFILES=apps/telnetd/telnetserver.c \
 # DHCPDFILES: DHCP Server files
 DHCPDFILES=apps/dhcpd/dhcps.c
 
+# PINGFILES: PING client files
+PINGFILES=apps/ping/ping.c \
+          apps/ping/ping_cli.c
+
 # LWIPAPPFILES: All LWIP APPs
 LWIPAPPFILES=$(SNMPFILES) \
 	$(HTTPDFILES) \
-	$(LWIPERFFILES) \
+	$(IPERFFILES) \
 	$(SNTPFILES) \
 	$(MDNSFILES) \
 	$(NETBIOSNSFILES) \
 	$(TFTPFILES) \
 	$(TELNETDFILES) \
-	$(DHCPDFILES)
+	$(DHCPDFILES) \
+	$(PINGFILES)

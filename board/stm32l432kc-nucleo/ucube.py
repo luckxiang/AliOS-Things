@@ -21,4 +21,5 @@ if aos_global_config.get('sal', 1) == 1:
 
 component.set_enable_vfp()
 
-linux_only_targets="networkapp blink linuxapp helloworld_nocli vflashdemo netmgrapp coapapp atapp tls mqttapp helloworld acapp nano hdlcapp.hdlcclient hdlcapp.hdlcserver alinkapp wifihalapp uDataapp"
+linux_only_targets="blink coapapp helloworld http2app jsengine_app modbus_demo mqttapp otaapp tls udata_demo.sensor_cloud_demo udata_demo.sensor_local_demo udata_demo.udata_cloud_demo udata_demo.udata_local_demo udataapp ulocation.baseapp yts"
+windows_only_targets="helloworld|COMPILER=armcc helloworld|COMPILER=iar"
